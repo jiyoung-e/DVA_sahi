@@ -258,7 +258,14 @@ def main():
         model_path = args.ckpt ,
         device='cuda:0', # or 'cpu'
         )
-
+    elif args.model == 'yolov8':
+        detection_model = AutoDetectionModel.from_pretrained(
+        model_type='yolov8',
+        confidence_threshold=0.3,
+        image_size = 1024,
+        model_path= args.ckpt,
+        device='cuda:0', # or 'cpu'
+    )
     predictor = Predictor(detection_model, args.device, args.fp16, args)
 
     current_time = time.localtime()
