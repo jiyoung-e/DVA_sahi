@@ -237,8 +237,8 @@ class BYTETracker(object):
         # association the untrack to the low score detections
         if len(dets_second) > 0:
             '''Detections'''
-            detections_second = [STrack(STrack.tlbr_to_tlwh(tlbr), s) for
-                          (tlbr, s) in zip(dets_second, scores_second)]
+            detections_second = [STrack(STrack.tlbr_to_tlwh(tlbr), s, l) for
+                          (tlbr, s, l) in zip(dets_second, scores_second, labels_second)]
             print("detections_second", detections_second)
         else:
             detections_second = []
