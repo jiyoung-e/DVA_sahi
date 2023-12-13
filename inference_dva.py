@@ -1,4 +1,5 @@
 import argparse
+import sys
 import os
 import os.path as osp
 import time
@@ -7,13 +8,13 @@ import torch
 
 from loguru import logger
 
+# 패키지의 루트 경로를 sys.path에 추가합니다.
 from yolox.data.data_augment import preproc
 from yolox.exp import get_exp
 from yolox.utils import fuse_model, get_model_info, postprocess
 from yolox.utils.visualize import plot_tracking
 from yolox.tracker.byte_tracker import BYTETracker
 from yolox.tracking_utils.timer import Timer
-
 # from sahi.models.yolox import YoloxDetectionModel
 from sahi.predict import get_sliced_prediction
 from sahi import AutoDetectionModel
@@ -30,7 +31,7 @@ def make_parser():
         "demo", default="image", help="demo type, eg. image, video and webcam"
     )
     parser.add_argument(
-        "--model", default="yolov5", help="Model name | yolov5, yolox, yolov8"
+        "--model", default="yolov8", help="Model name | yolov5, yolox, yolov8"
     )
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
@@ -48,6 +49,16 @@ def make_parser():
         "--output_path",
         default="./Bytetrack_Outputs",
         help="Output Path",
+    )
+    parser.add_argument(
+        "--sliced_size",
+        action="store_true",
+        help="sliced width, height size",
+    )
+    parser.add_argument(
+        "--overlap_ratio",
+        default=0.2,
+        help="Slice overlap ratio",
     )
 
     # exp file
@@ -124,15 +135,18 @@ class Predictor(object):
     def __init__(
         self,
         det_model,
+        sliced_size = 1024,
+        overlap_ratio = 0.2,
         device=torch.device("cuda:0"),
-        fp16=False,
-        args = None
+        fp16=False
     ):
         self.det_model = det_model
         
         self.device = device
         self.fp16 = fp16
-        self.args = args
+
+        self.sliced_size = sliced_size
+        self.overlap_ratio = overlap_ratio
         
         self.rgb_means = (0.485, 0.456, 0.406)
         self.std = (0.229, 0.224, 0.225)
@@ -152,15 +166,13 @@ class Predictor(object):
         img_info["raw_img"] = img
         
         file_name_without_extension, _ = os.path.splitext(os.path.basename(img_path))
-        result = get_sliced_prediction(img_path, self.det_model, slice_height=1024, slice_width=1024, output_file_name=file_name_without_extension)
+        result = get_sliced_prediction(img_path, self.det_model, output_file_name=file_name_without_extension, 
+                                       slice_height=self.sliced_size, slice_width=self.sliced_size, overlap_width_ratio=self.overlap_ratio, overlap_height_ratio=self.overlap_ratio)
     
         outputs = []
-        for ann in result.to_coco_annotations():
+        for ann in result.to_coco_annotations(): 
             bbox = ann['bbox']
-            if self.args.model == "yolox":
-                conf = ann['score'].item()
-            else:    
-                conf = ann['score']
+            conf = ann['score']
             label = ann['category_id']
             # output : [x1, y1, x2, y2, conf, label]
             outputs.append([bbox[0], bbox[1], bbox[0]+bbox[2], bbox[1]+bbox[3], conf, label])
@@ -180,13 +192,10 @@ def image_demo(predictor, vis_folder, current_time, args):
     results = []
     
     for frame_id, img_path in enumerate(files, 1):
-        print(img_path)
         outputs, img_info = predictor.inference(img_path, timer)
-        print(np.array(outputs))
         
         if outputs is not None and np.array(outputs).size > 0:
             online_targets = tracker.update(outputs, [img_info['height'], img_info['width']], [img_info['height'], img_info['width']])
-            print(online_targets)
             online_tlwhs = []
             online_ids = []
             online_scores = []
@@ -266,7 +275,7 @@ def main():
         model_path= args.ckpt,
         device='cuda:0', # or 'cpu'
     )
-    predictor = Predictor(detection_model, args.device, args.fp16, args)
+    predictor = Predictor(detection_model, args.sliced_size, args.overlap_ratio, args.device, args.fp16)
 
     current_time = time.localtime()
     if args.demo == "image":

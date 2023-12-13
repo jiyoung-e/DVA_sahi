@@ -94,13 +94,11 @@ class STrack(BaseTrack):
         """Get current position in bounding box format `(top left x, top left y,
                 width, height)`.
         """
-        # print("self.mean", self.mean)
         if self.mean is None:
             return self._tlwh.copy()
         ret = self.mean[:4].copy()
         ret[2] *= ret[3]
         ret[:2] -= ret[2:] / 2
-        # print("ret", ret)
         return ret
 
     @property
@@ -182,12 +180,10 @@ class BYTETracker(object):
         remain_inds = scores > self.args.track_thresh
         inds_low = scores > 0.1
         inds_high = scores < self.args.track_thresh
-        print(remain_inds, inds_low, inds_high)
 
         inds_second = np.logical_and(inds_low, inds_high)
         dets_second = bboxes[inds_second]
         dets = bboxes[remain_inds]
-        print("dets",dets)
         scores_keep = scores[remain_inds]
         scores_second = scores[inds_second]
 
@@ -197,7 +193,6 @@ class BYTETracker(object):
         if len(dets) > 0:
             '''Detections'''
             detections = [STrack(STrack.tlbr_to_tlwh(tlbr), s, l) for (tlbr, s, l) in zip(dets, scores_keep, labs)]
-            print("byte-detections",detections)
         else:
             detections = []
 
@@ -205,16 +200,12 @@ class BYTETracker(object):
         unconfirmed = []
         tracked_stracks = []  # type: list[STrack]
         for track in self.tracked_stracks:
-            print("byte-track", track)
             if not track.is_activated:
                 unconfirmed.append(track)
             else:
                 tracked_stracks.append(track)
-        print("tracked_stracks", tracked_stracks)
-        print("unconfirmed", unconfirmed)
         ''' Step 2: First association, with high score detection boxes'''
         strack_pool = joint_stracks(tracked_stracks, self.lost_stracks)
-        print("strack_pool", strack_pool)
         # Predict the current location with KF
         STrack.multi_predict(strack_pool)
         dists = matching.iou_distance(strack_pool, detections)
@@ -229,7 +220,6 @@ class BYTETracker(object):
                 track.update(detections[idet], self.frame_id)
                 activated_starcks.append(track)
             else:
-                print("in here")
                 track.re_activate(det, self.frame_id, new_id=True)
                 refind_stracks.append(track)
 
@@ -239,7 +229,6 @@ class BYTETracker(object):
             '''Detections'''
             detections_second = [STrack(STrack.tlbr_to_tlwh(tlbr), s, l) for
                           (tlbr, s, l) in zip(dets_second, scores_second, labels_second)]
-            print("detections_second", detections_second)
         else:
             detections_second = []
         r_tracked_stracks = [strack_pool[i] for i in u_track if strack_pool[i].state == TrackState.Tracked]
