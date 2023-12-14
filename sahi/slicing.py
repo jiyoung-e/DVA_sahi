@@ -312,7 +312,6 @@ def slice_image(
         num_total_invalid_segmentation: int
             Number of invalid segmentation annotations.
     """
-
     # define verboseprint
     verboselog = logger.info if verbose else lambda *a, **k: None
 

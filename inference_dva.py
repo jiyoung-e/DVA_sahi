@@ -52,7 +52,7 @@ def make_parser():
     )
     parser.add_argument(
         "--sliced_size",
-        action="store_true",
+        default=1024,
         help="sliced width, height size",
     )
     parser.add_argument(
@@ -167,7 +167,7 @@ class Predictor(object):
         
         file_name_without_extension, _ = os.path.splitext(os.path.basename(img_path))
         result = get_sliced_prediction(img_path, self.det_model, output_file_name=file_name_without_extension, 
-                                       slice_height=self.sliced_size, slice_width=self.sliced_size, overlap_width_ratio=self.overlap_ratio, overlap_height_ratio=self.overlap_ratio)
+                                       slice_height=self.sliced_size, slice_width=self.sliced_size, overlap_width_ratio=self.overlap_ratio, overlap_height_ratio=self.overlap_ratio, postprocess_type="NMS")
     
         outputs = []
         for ann in result.to_coco_annotations(): 
